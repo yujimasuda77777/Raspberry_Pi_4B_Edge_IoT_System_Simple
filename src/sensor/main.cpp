@@ -2,7 +2,7 @@
 
 int main()
 {
-    std:cont << "Sensor Process Start" << std:endl;
+    std::cont << "Sensor Process Start" << std:endl;
 
     return 0;
 
