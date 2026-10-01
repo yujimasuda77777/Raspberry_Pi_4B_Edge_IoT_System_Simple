@@ -5,13 +5,15 @@ project(Raspberry_Pi_4B_Edge_IoT_System)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-target_include_directories(
-    sensor-process
-    PRIVATE
-    include
-)
+
 
 add_executable(
     sensor-process
     src/sensor/main.cpp
+)
+
+target_include_directories(
+    sensor-process
+    PRIVATE
+    include
 )
