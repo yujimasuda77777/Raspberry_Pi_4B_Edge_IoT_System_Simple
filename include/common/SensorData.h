@@ -11,6 +11,6 @@ struct SensorData
     std::int64_t timestamp;        //time
 
 
-}
+};
 
 #endif
