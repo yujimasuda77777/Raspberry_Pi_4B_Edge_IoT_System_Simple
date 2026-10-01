@@ -9,7 +9,7 @@ int main()
 
     Dht11Sensor sensor(14);
 
-    if(!sensor.initialize)
+    if(!sensor.initialize())
     {
          std::cout << "Initialize failed" << std::endl;
          return 1;
