@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-struct SENSOR_DATA_H
+struct SensorData
 {
     int data_id;
     double temperature;  //温度
