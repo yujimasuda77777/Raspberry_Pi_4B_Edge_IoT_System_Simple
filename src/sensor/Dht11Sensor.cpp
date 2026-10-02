@@ -188,7 +188,8 @@ bool Dht11Sensor::read(double& temperature, double& humidity)
         m_gpioHandle,
         0,
         m_gpioPin,
-        LG_BOTH_EDGES
+        LG_BOTH_EDGES,
+        0
     );
 
     if (result < 0)
