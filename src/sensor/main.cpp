@@ -1,3 +1,4 @@
+#include <chrono>
 #include <iostream>
 
 #include "common/SensorData.h"
@@ -41,14 +42,58 @@ int main()
         return 1;
     }
 
+    /*
+     * ================================================
+     * SensorDataを作成する
+     * ================================================
+     *
+     * DHT11から取得したデータを、
+     * システムで扱うSensorDataにまとめる。
+     */
+    SensorData data{};
+
+    // データ識別番号
+    data.data_id = 1;
+
+    // DHT11から取得した温度
+    data.temperature = temperature;
+
+    // DHT11から取得した湿度
+    data.humidity = humidity;
+
+    // 現在時刻をUnix時刻で取得する
+    data.timestamp =
+        std::chrono::system_clock::to_time_t(
+            std::chrono::system_clock::now()
+        );
+
+    /*
+     * ================================================
+     * SensorDataの内容を確認する
+     * ================================================
+     */
     std::cout
-        << "Temperature : "
-        << temperature
+        << "SensorData"
         << std::endl;
 
     std::cout
-        << "Humidity    : "
-        << humidity
+        << "  data_id    : "
+        << data.data_id
+        << std::endl;
+
+    std::cout
+        << "  temperature: "
+        << data.temperature
+        << std::endl;
+
+    std::cout
+        << "  humidity   : "
+        << data.humidity
+        << std::endl;
+
+    std::cout
+        << "  timestamp  : "
+        << data.timestamp
         << std::endl;
 
     return 0;
