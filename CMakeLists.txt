@@ -20,3 +20,10 @@ target_include_directories(
     PRIVATE
     include
 )
+
+# lgpioライブラリをリンクする
+target_link_libraries(
+    sensor-process
+    PRIVATE
+    lgpio
+)

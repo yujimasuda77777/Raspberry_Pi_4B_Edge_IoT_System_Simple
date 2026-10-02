@@ -17,19 +17,25 @@ int main()
 
     std::cout << "DHT11 initialize success." << std::endl;
 
-    SensorData data;
+    double temperature = 0.0;
+    double humidity = 0.0;
 
-    data.data_id = 1;
-    data.temperature = 25.5;
-    data.humidity = 10.4;
-    data.timestamp = 1234567890;
+    if(!sensor.read(temperature,humidity))
+    {
+        std::cerr << "DHT11 read failed."
+                  << std::endl;
+
+        return 1;
+    }
 
 
-    std::cout << "Data ID :" << data.data_id << std::endl;
+    std::cout << "Temperature : "
+              << temperature
+              << std::endl;
 
-    std::cout << "Data Temperature :" << data.temperature << std::endl;
-    std::cout << "Data Humidity :" << data.humidity << std::endl;
-    std::cout << "Data Timestamp :" << data.timestamp << std::endl;
+    std::cout << "Humidity    : "
+              << humidity
+              << std::endl;
 
     return 0;
 

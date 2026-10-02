@@ -7,6 +7,8 @@ public:
 
     explicit Dht11Sensor(unsigned int gpioPin);
 
+    ~Dht11Sensor();
+
     bool initialize();
 
     bool read(double& temperature,double& humidity);
@@ -16,6 +18,8 @@ private:
     unsigned int m_gpioPin;
 
     int m_gpioHandle;
+
+    bool m_gpioClaimed;
 
 
 
