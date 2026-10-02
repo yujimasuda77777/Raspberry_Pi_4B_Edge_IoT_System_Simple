@@ -96,9 +96,9 @@ bool Dht11Sensor::read(double& temperature, double& humidity)
     temperature = 0.0;
     humidity = 0.0;
 
-    if(!lgGpioClaimed)
+    if(!m_gpioClaimed)
     {
-        std::std << "GPio is not claimed." << std::endl;
+        std::cout << "GPio is not claimed." << std::endl;
         return false;
     }
 
