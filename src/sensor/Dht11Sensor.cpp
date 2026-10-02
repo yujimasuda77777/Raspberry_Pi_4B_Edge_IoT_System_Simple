@@ -1,10 +1,9 @@
 #include "sensor/Dht11Sensor.h"
 
 #include <chrono>
+#include <cstdint>
 #include <iostream>
 #include <thread>
-
-#include <lgpio.h>
 
 /**
  * @brief コンストラクタ
@@ -27,12 +26,14 @@ Dht11Sensor::~Dht11Sensor()
     if (m_gpioClaimed)
     {
         lgGpioFree(m_gpioHandle, m_gpioPin);
+        m_gpioClaimed = false;
     }
 
     // GPIOチップを閉じる
     if (m_gpioHandle >= 0)
     {
         lgGpiochipClose(m_gpioHandle);
+        m_gpioHandle = -1;
     }
 }
 
@@ -55,7 +56,11 @@ bool Dht11Sensor::initialize()
         return false;
     }
 
-    // GPIO14を出力として確保する
+    /*
+     * GPIO14を出力として確保する。
+     *
+     * 初期値はHIGHにする。
+     */
     int result = lgGpioClaimOutput(
         m_gpioHandle,
         0,
@@ -84,9 +89,64 @@ bool Dht11Sensor::initialize()
 }
 
 /**
+ * @brief GPIOエッジ通知コールバック
+ *
+ * DHT11からGPIOの状態変化が発生すると、
+ * lgpioからこの関数が呼び出される。
+ *
+ * @param numAlerts 通知されたエッジ数
+ * @param alerts    エッジ情報
+ * @param userdata  Dht11Sensor自身へのポインタ
+ */
+void Dht11Sensor::alertCallback(
+    int numAlerts,
+    lgGpioAlert_p alerts,
+    void* userdata)
+{
+    // userdataからDht11Sensorを取得する
+    Dht11Sensor* sensor =
+        static_cast<Dht11Sensor*>(userdata);
+
+    if (sensor == nullptr)
+    {
+        return;
+    }
+
+    /*
+     * 通知されたエッジを順番に処理する。
+     */
+    for (int i = 0; i < numAlerts; ++i)
+    {
+        const lgGpioAlert_t& alert = alerts[i];
+
+        /*
+         * 今回はGPIO14のエッジだけを表示する。
+         */
+        if (alert.report.gpio != sensor->m_gpioPin)
+        {
+            continue;
+        }
+
+        /*
+         * timestampはエッジが発生した時刻。
+         *
+         * DHT11では、このtimestampの差を利用して
+         * パルス幅を測定する。
+         */
+        std::cout
+            << "DHT11 edge"
+            << " GPIO=" << alert.report.gpio
+            << " level=" << alert.report.level
+            << " timestamp=" << alert.report.timestamp
+            << std::endl;
+    }
+}
+
+/**
  * @brief DHT11から温度・湿度を読み取る
  *
- * 今回はDHT11の応答パルスを確認する。
+ * 今回はDHT11から返ってくるGPIOエッジを
+ * lgpioで受信するところまで実装する。
  *
  * @param temperature 読み取った温度
  * @param humidity    読み取った湿度
@@ -94,13 +154,17 @@ bool Dht11Sensor::initialize()
  * @return true  通信開始成功
  * @return false 通信開始失敗
  */
-bool Dht11Sensor::read(double& temperature, double& humidity)
+bool Dht11Sensor::read(
+    double& temperature,
+    double& humidity)
 {
-    // 今回はまだ温度・湿度を解析しない
+    // 今回はまだデータ解析をしない
     temperature = 0.0;
     humidity = 0.0;
 
-    // GPIOが確保されているか確認する
+    /*
+     * GPIOが確保されているか確認する。
+     */
     if (!m_gpioClaimed)
     {
         std::cerr << "GPIO is not claimed."
@@ -110,13 +174,16 @@ bool Dht11Sensor::read(double& temperature, double& humidity)
     }
 
     /*
-     * --------------------------------------------------
-     * 1. DHT11に通信開始を通知する
-     * --------------------------------------------------
+     * ================================================
+     * 1. DHT11への開始信号
+     * ================================================
      */
 
-    // GPIOをLOWにする
-    if (lgGpioWrite(m_gpioHandle, m_gpioPin, 0) < 0)
+    // GPIO14をLOWにする
+    if (lgGpioWrite(
+            m_gpioHandle,
+            m_gpioPin,
+            0) < 0)
     {
         std::cerr << "lgGpioWrite LOW failed."
                   << std::endl;
@@ -124,25 +191,28 @@ bool Dht11Sensor::read(double& temperature, double& humidity)
         return false;
     }
 
-    std::cout << "DHT11 start signal: LOW"
-              << std::endl;
+    std::cout
+        << "DHT11 start signal: LOW"
+        << std::endl;
 
     /*
-     * DHT11では、ホスト側がLOWを一定時間維持する。
-     *
-     * 今回は約18ms待つ。
+     * DHT11への開始信号として
+     * 約18ms LOWを維持する。
      */
     std::this_thread::sleep_for(
         std::chrono::milliseconds(18)
     );
 
     /*
-     * --------------------------------------------------
+     * ================================================
      * 2. GPIOをHIGHにする
-     * --------------------------------------------------
+     * ================================================
      */
 
-    if (lgGpioWrite(m_gpioHandle, m_gpioPin, 1) < 0)
+    if (lgGpioWrite(
+            m_gpioHandle,
+            m_gpioPin,
+            1) < 0)
     {
         std::cerr << "lgGpioWrite HIGH failed."
                   << std::endl;
@@ -150,23 +220,24 @@ bool Dht11Sensor::read(double& temperature, double& humidity)
         return false;
     }
 
-    std::cout << "DHT11 start signal: HIGH"
-              << std::endl;
+    std::cout
+        << "DHT11 start signal: HIGH"
+        << std::endl;
 
     /*
-     * --------------------------------------------------
-     * 3. GPIOを入力監視に切り替える
-     * --------------------------------------------------
+     * ================================================
+     * 3. GPIOを一度解放する
+     * ================================================
      *
-     * DHT11はここからGPIOを使って応答してくる。
+     * 今まではGPIOを「出力」として使用していた。
      *
-     * GPIOを出力として確保したままでは、
-     * DHT11の信号を受信できない。
-     *
-     * そのため、一度GPIOを解放する。
+     * ここからはDHT11がGPIOを操作するので、
+     * Raspberry Pi側の出力設定を解除する。
      */
 
-    if (lgGpioFree(m_gpioHandle, m_gpioPin) < 0)
+    if (lgGpioFree(
+            m_gpioHandle,
+            m_gpioPin) < 0)
     {
         std::cerr << "lgGpioFree failed."
                   << std::endl;
@@ -179,17 +250,45 @@ bool Dht11Sensor::read(double& temperature, double& humidity)
     m_gpioClaimed = false;
 
     /*
-     * --------------------------------------------------
-     * 4. DHT11の応答を監視する
-     * --------------------------------------------------
+     * ================================================
+     * 4. GPIOエッジ通知コールバックを登録
+     * ================================================
+     *
+     * DHT11のGPIO14の状態変化を受け取る。
      */
+    int result = lgGpioSetAlertsFunc(
+        m_gpioHandle,
+        m_gpioPin,
+        Dht11Sensor::alertCallback,
+        this
+    );
 
-    int result = lgGpioClaimAlert(
+    if (result < 0)
+    {
+        std::cerr << "lgGpioSetAlertsFunc failed."
+                  << std::endl;
+
+        return false;
+    }
+
+    /*
+     * ================================================
+     * 5. GPIOを両エッジ監視として確保
+     * ================================================
+     *
+     * LG_BOTH_EDGES:
+     *
+     *   HIGH → LOW
+     *   LOW  → HIGH
+     *
+     * の両方を監視する。
+     */
+    result = lgGpioClaimAlert(
         m_gpioHandle,
         0,
-        m_gpioPin,
         LG_BOTH_EDGES,
-        0
+        m_gpioPin,
+        -1
     );
 
     if (result < 0)
@@ -197,31 +296,52 @@ bool Dht11Sensor::read(double& temperature, double& humidity)
         std::cerr << "lgGpioClaimAlert failed."
                   << std::endl;
 
+        lgGpioSetAlertsFunc(
+            m_gpioHandle,
+            m_gpioPin,
+            nullptr,
+            nullptr
+        );
+
         return false;
     }
 
     m_gpioClaimed = true;
 
-    std::cout << "DHT11 GPIO alert started."
-              << std::endl;
+    std::cout
+        << "DHT11 GPIO alert started."
+        << std::endl;
 
     /*
-     * --------------------------------------------------
-     * 5. 少し待ってDHT11の応答を受信する
-     * --------------------------------------------------
+     * ================================================
+     * 6. DHT11の応答を待つ
+     * ================================================
      *
-     * 今回はまだ40bitの解析をしない。
+     * DHT11はこの間に応答する。
      *
-     * 次の段階で、この部分に
-     * エッジのタイムスタンプ取得処理を追加する。
+     * コールバック関数が呼び出され、
+     * GPIOのエッジ情報が表示される。
      */
-
     std::this_thread::sleep_for(
         std::chrono::milliseconds(5)
     );
 
-    std::cout << "DHT11 response monitoring finished."
-              << std::endl;
+    /*
+     * ================================================
+     * 7. GPIO監視を終了
+     * ================================================
+     */
+
+    lgGpioSetAlertsFunc(
+        m_gpioHandle,
+        m_gpioPin,
+        nullptr,
+        nullptr
+    );
+
+    std::cout
+        << "DHT11 response monitoring finished."
+        << std::endl;
 
     return true;
 }
