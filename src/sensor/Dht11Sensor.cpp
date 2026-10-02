@@ -102,9 +102,9 @@ bool Dht11Sensor::read(double& temperature, double& humidity)
         return false;
     }
 
-    if (lGpioWrite(m_gpioHandle, m_gpioPin, 0) < 0)
+    if (lgGpioWrite(m_gpioHandle, m_gpioPin, 0) < 0)
     {
-        std:cerr << "lgGpioWrite LOW failed." << std::endl;
+        std::cerr << "lgGpioWrite LOW failed." << std::endl;
         return false;
 
     }
