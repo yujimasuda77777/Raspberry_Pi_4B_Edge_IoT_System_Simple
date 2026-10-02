@@ -1,7 +1,7 @@
 #ifndef DHT11_SENSOR_H
 #define DHT11_SENSOR_H
 
-#include <lgpio.h>
+#include <cstdint>
 
 /**
  * @brief DHT11温湿度センサを扱うクラス
@@ -13,7 +13,7 @@ public:
     /**
      * @brief コンストラクタ
      *
-     * @param gpioPin DHT11を接続するGPIO番号
+     * @param gpioPin DHT11を接続するBCM GPIO番号
      */
     explicit Dht11Sensor(unsigned int gpioPin);
 
@@ -44,25 +44,57 @@ public:
 private:
 
     /**
-     * @brief GPIOのエッジ通知を受け取るコールバック
+     * @brief GPIOを出力として確保する
      *
-     * @param numAlerts 通知されたエッジ数
-     * @param alerts    エッジ情報
-     * @param userdata  Dht11Sensor自身へのポインタ
+     * @param initialValue 初期出力値
+     *
+     * @return true  成功
+     * @return false 失敗
      */
-    static void alertCallback(
-        int numAlerts,
-        lgGpioAlert_p alerts,
-        void* userdata
-    );
+    bool configureOutput(int initialValue);
 
-    // DHT11を接続するGPIO番号
+    /**
+     * @brief GPIOを入力として確保する
+     *
+     * @return true  成功
+     * @return false 失敗
+     */
+    bool configureInput();
+
+    /**
+     * @brief GPIOを解放する
+     */
+    void releaseGpio();
+
+    /**
+     * @brief DHT11から40bitの生データを取得する
+     *
+     * @param data 取得した5バイトのデータ
+     *
+     * @return true  成功
+     * @return false 失敗
+     */
+    bool readRawData(std::uint8_t data[5]);
+
+    /**
+     * @brief DHT11のチェックサムを確認する
+     *
+     * @param data DHT11から取得した5バイト
+     *
+     * @return true  正常
+     * @return false 異常
+     */
+    bool checkChecksum(const std::uint8_t data[5]) const;
+
+private:
+
+    // DHT11を接続するBCM GPIO番号
     unsigned int m_gpioPin;
 
-    // GPIOチップのハンドル
+    // lgpio GPIOチップハンドル
     int m_gpioHandle;
 
-    // GPIOを確保しているか
+    // GPIOを現在確保しているか
     bool m_gpioClaimed;
 };
 
