@@ -1,7 +1,9 @@
+```cpp
 #include <chrono>
 #include <iostream>
 
 #include "common/SensorData.h"
+#include "ipc/SensorDataMessageQueue.h"
 #include "sensor/Dht11Sensor.h"
 
 int main()
@@ -10,7 +12,11 @@ int main()
         << "Sensor Process Start"
         << std::endl;
 
-    // GPIO14に接続されたDHT11センサを作成する
+    // ============================================================
+    // DHT11センサを作成する
+    // ============================================================
+
+    // DHT11はBCM GPIO14に接続されている
     Dht11Sensor sensor(14);
 
     // DHT11を初期化する
@@ -27,7 +33,29 @@ int main()
         << "DHT11 initialize success."
         << std::endl;
 
+    // ============================================================
+    // Message Queueを作成する
+    // ============================================================
+
+    SensorDataMessageQueue messageQueue;
+
+    if (!messageQueue.open())
+    {
+        std::cerr
+            << "Message Queue open failed."
+            << std::endl;
+
+        return 1;
+    }
+
+    std::cout
+        << "Message Queue open success."
+        << std::endl;
+
+    // ============================================================
     // DHT11から温度・湿度を読み取る
+    // ============================================================
+
     double temperature = 0.0;
     double humidity = 0.0;
 
@@ -42,14 +70,10 @@ int main()
         return 1;
     }
 
-    /*
-     * ================================================
-     * SensorDataを作成する
-     * ================================================
-     *
-     * DHT11から取得したデータを、
-     * システムで扱うSensorDataにまとめる。
-     */
+    // ============================================================
+    // SensorDataを作成する
+    // ============================================================
+
     SensorData data{};
 
     // データ識別番号
@@ -67,11 +91,10 @@ int main()
             std::chrono::system_clock::now()
         );
 
-    /*
-     * ================================================
-     * SensorDataの内容を確認する
-     * ================================================
-     */
+    // ============================================================
+    // SensorDataの内容を表示する
+    // ============================================================
+
     std::cout
         << "SensorData"
         << std::endl;
@@ -96,5 +119,23 @@ int main()
         << data.timestamp
         << std::endl;
 
+    // ============================================================
+    // SensorDataをMessage Queueへ送信する
+    // ============================================================
+
+    if (!messageQueue.send(data))
+    {
+        std::cerr
+            << "SensorData send failed."
+            << std::endl;
+
+        return 1;
+    }
+
+    std::cout
+        << "SensorData send success."
+        << std::endl;
+
     return 0;
 }
+```
