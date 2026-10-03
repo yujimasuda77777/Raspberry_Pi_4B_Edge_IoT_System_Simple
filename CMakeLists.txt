@@ -1,4 +1,3 @@
-```cmake
 cmake_minimum_required(VERSION 3.16)
 
 project(Raspberry_Pi_4B_Edge_IoT_System)
@@ -44,4 +43,3 @@ target_link_libraries(
     PRIVATE
     rt
 )
-```
