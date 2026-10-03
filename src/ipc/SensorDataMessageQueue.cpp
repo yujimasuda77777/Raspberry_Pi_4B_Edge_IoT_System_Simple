@@ -1,4 +1,3 @@
-```cpp
 #include "ipc/SensorDataMessageQueue.h"
 
 #include <cerrno>
@@ -205,4 +204,3 @@ bool SensorDataMessageQueue::receive(
 
     return true;
 }
-```
